@@ -1,8 +1,10 @@
+# BugHuntr.io - Greengrocer Market Write Up by devslashnull
+
 The Greengrocer Market bughuntr.io scenario starts with a simple web application which appears to be a landing page for a small greengrocer shop. The URL provided for this scenario was https://ddosedlaptop.br2.bughuntr.net/ (each scenario run appears to use a random URL though).
 
-The first thing I tried was using (ffuf)[https://github.com/ffuf/ffuf] with the `raft-medium-words.txt` wordlist against the URL:
+The first thing I tried was using [ffuf](https://github.com/ffuf/ffuf) with the `raft-medium-words.txt` wordlist against the URL:
 
-```
+```sh
 $ ./ffuf -w /opt/wordlists/raft-medium-words.txt -u https://ddosedlaptop.br2.bughuntr.net/FUZZ
 
         /'___\  /'___\           /'___\       
@@ -56,9 +58,9 @@ Googling for the `Onion-Location` header lead to a support page from the Tor Pro
 
 > Onion-Location is a new HTTP header that web sites can use to advertise their onion counterpart
 
-In Tor parlance, an 'onion' site or hidden service, is a site that can only be accessed over the Tor network. So I loaded up the discovered URL in the (Tor Browser)[https://www.torproject.org/download/] and was presented with a whole different type of market:
+In Tor parlance, an 'onion' site or hidden service, is a site that can only be accessed over the Tor network. So I loaded up the discovered URL in the [Tor Browser](https://www.torproject.org/download/) and was presented with a whole different type of market:
 
-**TODO**: Screenshot
+![Greengrocer Darknet Market front page](./greengrocer_darknet_market.png)
 
 It appears as though the Greengrocer Market was a front for a Darknet Market 😱 Here I found the first flag:
 
@@ -66,9 +68,10 @@ It appears as though the Greengrocer Market was a front for a Darknet Market �
 
 *'Wellcome' typo is on the site, not one of my making!*
 
-Whilst this website looks different, as before there did not seem to be much / any extra functionality. At this point, Googling for Tor hidden service vulnerabilities I discovered a promising looking tool (OnionScan)[https://onionscan.org/]. Unfortunately it appears as though this tool has not been actively developed since 2016, and does not support v3 onion addresses, which is what was being used by Greengrocer Market.
+Whilst this website looks different, as before there did not seem to be much / any extra functionality. At this point, Googling for Tor hidden service vulnerabilities I discovered a promising looking tool [OnionScan](https://onionscan.org/). Unfortunately it appears that this tool has not been actively developed since 2016, and does not support v3 onion addresses, which is what was being used by Greengrocer Market.
 
-Reading about the (checks that OnionScan performs)[https://github.com/s-rah/onionscan/blob/master/doc/what-is-scanned-for.md], I saw something familiar:
+Reading about the [checks that OnionScan performs](https://github.com/s-rah/onionscan/blob/master/doc/what-is-scanned-for.md), I saw something familiar:
+
 > Seriously, don't even run the tool, go to your site and check if you have `/server-status` reachable. If you do, turn it off!
 
 I found earlier that `/server-status` responded with a 403 error being accessed via the regular clearnet URL, but from the onion service over Tor it give a '200 OK' response! Apache mod_status, the Apache module behind the `/server-status` path, lists among other information URLs which have recently been visited. In this case, the output included the following interesting entries:
@@ -107,7 +110,7 @@ RegDate:        2017-03-22
 Updated:        2017-12-01
 ```
 
-I got stuck here for quite a while until I reviewed the API response again and noticed the `"connection": "tor-exitnode"` entry. Since this scenario used Tor quite extensively, I did another IP address lookup, but this time on the Tor ('ExoneraTor' service)[https://metrics.torproject.org/exonerator.html]. This indicated that the IP address was associated with a Tor Exit Relay. So now all I had to do was use the same Tor exit relay to access the `/flag` path. I spent quite a while refreshing Tor circuits to try and get a Tor circuit with the same exit relay, but didn't have any luck. Reading through the Tor documentation (reading the documentation is always my last resort 🤦‍♂️), I noticed that you can set the Exit Relay in the `torrc` configuration. This can be done in Tor Browser by adding the following configuration in the `./Browser/TorBrowser/Data/Tor/torrc` file, and restarting Tor Browser:
+I got stuck here for quite a while until I reviewed the API response again and noticed the `"connection": "tor-exitnode"` entry. Since this scenario used Tor quite extensively, I did another IP address lookup, but this time on the Tor ['ExoneraTor' service](https://metrics.torproject.org/exonerator.html). This indicated that the IP address was associated with a Tor Exit Relay. So now all I had to do was use the same Tor exit relay to access the `/flag` path. I spent quite a while refreshing Tor circuits to try and get a Tor circuit with the same exit relay, but didn't have any luck. Reading through the Tor documentation (reading the documentation is always my last resort 🤦‍♂️), I noticed that you can set the Exit Relay in the `torrc` configuration. This can be done in Tor Browser by adding the following configuration in the `./Browser/TorBrowser/Data/Tor/torrc` file, and restarting Tor Browser:
 ```
 ExitNodes 199.249.230.163
 ```
